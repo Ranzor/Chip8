@@ -1,0 +1,30 @@
+[
+  {
+    "task": "comments to the new opcodes",
+    "completed": true
+  },
+  {
+    "task": "4XNN opcode, almost identicalto 3XNN just skip if not equal",
+    "completed": true
+  },
+  {
+    "task": "5XY0 skip if VX is equal to VY",
+    "completed": true
+  },
+  {
+    "task": "9XY0 skip of VX is NOT equal to VY",
+    "completed": true
+  },
+  {
+    "task": "00E0 clear screen",
+    "completed": false
+  },
+  {
+    "task": "DXYN display/draw",
+    "completed": false
+  },
+  {
+    "task": "Display the IBM logo",
+    "completed": false
+  }
+]
