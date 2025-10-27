@@ -22,11 +22,19 @@ struct Chip8 {
     keys: [bool; 16],      // Current key states
     waiting_for_key: bool, // Is CPU waiting for input?
     key_register: usize,   // Which register to store key in
+
+    // Timers
+    delay_timer: u8,
+    sound_timer: u8,
+
+    // Stack
+    stack: [u16; 16],
+    sp: usize,
 }
 
 impl Chip8 {
     fn new() -> Self {
-        Chip8 {
+        let mut chip8 = Chip8 {
             memory: [0; 4096],
             registers: [0; 16],
             pc: 0x200,
@@ -35,9 +43,35 @@ impl Chip8 {
             keys: [false; 16],
             waiting_for_key: false,
             key_register: 0,
-        }
-    }
+            delay_timer: 0,
+            sound_timer: 0,
+            stack: [0; 16],
+            sp: 0,
+        };
 
+        // Load font into memory starting at 0x050
+        let font: [u8; 80] = [
+            0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+            0x20, 0x60, 0x20, 0x20, 0x70, // 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+            0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+        ];
+        chip8.memory[0x050..0x0A0].copy_from_slice(&font);
+
+        chip8
+    }
     fn get_display_buffer(&self) -> Vec<u32> {
         let mut buffer = vec![0u32; 64 * 32];
 
@@ -132,12 +166,23 @@ impl Chip8 {
                     // 00E0 Clear display
                     self.display = [0; 256];
                 }
+                0x00EE => {
+                    // 00EE: Return from subroutine
+                    self.sp -= 1;
+                    self.pc = self.stack[self.sp];
+                }
                 _ => println!("Unknown 0x0... opcode: {:#06X}", opcode),
             },
 
             0x1000 => {
                 // 1NNN jumps to address NNN
                 println!("Jump to PC{:#05X}", nnn);
+                self.pc = nnn - 2;
+            }
+            0x2000 => {
+                // 2NNN: Call subroutine at NNN
+                self.stack[self.sp] = self.pc;
+                self.sp += 1;
                 self.pc = nnn - 2;
             }
 
@@ -186,6 +231,10 @@ impl Chip8 {
             0x8000 => {
                 // 8XY_: Register operations
                 match opcode & 0x000F {
+                    0x0000 => {
+                        // 8XY0: VX = VY
+                        self.registers[x] = self.registers[y];
+                    }
                     0x0002 => {
                         // 8XY2: Bitwise VX AND VY
                         let result = self.registers[x] & self.registers[y];
@@ -199,6 +248,13 @@ impl Chip8 {
                             self.registers[x].overflowing_add(self.registers[y]);
                         self.registers[x] = result;
                         self.registers[0xF] = if overflow { 1 } else { 0 };
+                    }
+                    0x0005 => {
+                        println!("V{:X} -= V{:X}", x, y);
+                        let (result, underflow) =
+                            self.registers[x].overflowing_sub(self.registers[y]);
+                        self.registers[x] = result;
+                        self.registers[0xF] = if underflow { 0 } else { 1 };
                     }
 
                     _ => println!("Unknown 8XY_ opcode: {:#06X}", opcode),
@@ -253,13 +309,62 @@ impl Chip8 {
                 }
             }
 
+            0xE000 => {
+                match opcode & 0x00FF {
+                    0x009E => {
+                        // EX9E: Skip next instruction if key VX is pressed
+                        let key = self.registers[x] as usize;
+                        if self.keys[key] {
+                            self.pc += 2;
+                        }
+                    }
+                    0x00A1 => {
+                        // EXA1: Skip next instruction if key VX is NOT pressed
+                        let key = self.registers[x] as usize;
+                        if !self.keys[key] {
+                            self.pc += 2;
+                        }
+                    }
+                    _ => println!("Unkown 0xE ... opcode: {:#06X}", opcode),
+                }
+            }
+
             0xF000 => {
                 match opcode & 0x00FF {
+                    0x07 => {
+                        // FX07: Set VX to delay timer value
+                        self.registers[x] = self.delay_timer;
+                    }
                     0x0A => {
                         // FX0A: wait for key press
                         self.waiting_for_key = true;
                         self.key_register = x;
                         self.pc -= 2;
+                    }
+                    0x15 => {
+                        // FX15: Set delay timer to VX
+                        self.delay_timer = self.registers[x];
+                    }
+                    0x18 => {
+                        // FX18: Set sound timer to VX
+                        self.sound_timer = self.registers[x];
+                    }
+                    0x29 => {
+                        // FX29: Sets I to the location of the sprite for the character in VX
+                        self.i = (self.registers[x] * 5) as u16 + 0x050
+                    }
+                    0x33 => {
+                        // FX33: Store decimal representation of VX with hundreds at I tens at I+1
+                        // and ones at I+2
+                        let hundreds = self.registers[x] / 100;
+                        let tens = (self.registers[x] % 100) / 10;
+                        let ones = (self.registers[x] % 100) % 10;
+                        self.memory[self.i as usize] = hundreds;
+                        self.memory[(self.i + 1) as usize] = tens;
+                        self.memory[(self.i + 2) as usize] = ones;
+                    }
+                    0x65 => {
+                        // FX65: Fills from V0 to VX with values from memory starting at address I
                     }
                     _ => println!("Unknown 0xF... opcode: {:#06X}", opcode),
                 }
@@ -305,6 +410,15 @@ impl Chip8 {
         }
         println!("\n");
     }
+
+    fn update_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
+    }
 }
 
 fn main() {
@@ -318,7 +432,7 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     // Read the ROM file
-    let rom = fs::read("life.ch8").expect("Failed to read ROM file");
+    let rom = fs::read("pong.ch8").expect("Failed to read ROM file");
 
     // Load it into memory
     chip8.load_program(&rom);
@@ -326,10 +440,12 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         chip8.set_keys(&window);
 
-        for _ in 0..12 {
+        for _ in 0..11 {
             chip8.cycle();
-            chip8.print_state();
+            //  chip8.print_state();
         }
+
+        chip8.update_timers();
 
         let buffer = chip8.get_display_buffer();
         window.update_with_buffer(&buffer, 64, 32).unwrap();
