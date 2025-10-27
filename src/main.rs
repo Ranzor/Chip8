@@ -435,7 +435,7 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     // Read the ROM file
-    let rom = fs::read("keypad.ch8").expect("Failed to read ROM file");
+    let rom = fs::read("roms/ibm.ch8").expect("Failed to read ROM file");
 
     // Load it into memory
     chip8.load_program(&rom);
