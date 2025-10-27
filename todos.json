@@ -1,38 +1,10 @@
 [
   {
-    "task": "comments to the new opcodes",
-    "completed": true
+    "task": "opcode FX35",
+    "completed": false
   },
   {
-    "task": "4XNN opcode, almost identicalto 3XNN just skip if not equal",
-    "completed": true
-  },
-  {
-    "task": "5XY0 skip if VX is equal to VY",
-    "completed": true
-  },
-  {
-    "task": "9XY0 skip of VX is NOT equal to VY",
-    "completed": true
-  },
-  {
-    "task": "00E0 clear screen",
-    "completed": true
-  },
-  {
-    "task": "DXYN display/draw",
-    "completed": true
-  },
-  {
-    "task": "load a rom file",
-    "completed": true
-  },
-  {
-    "task": "Display the IBM logo",
-    "completed": true
-  },
-  {
-    "task": "implement actual display",
-    "completed": true
+    "task": "load rom from arg",
+    "completed": false
   }
 ]

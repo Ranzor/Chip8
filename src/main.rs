@@ -349,6 +349,9 @@ impl Chip8 {
                         // FX18: Set sound timer to VX
                         self.sound_timer = self.registers[x];
                     }
+                    0x1E => {
+                        self.memory[self.i as usize] = self.registers[x];
+                    }
                     0x29 => {
                         // FX29: Sets I to the location of the sprite for the character in VX
                         self.i = (self.registers[x] * 5) as u16 + 0x050
@@ -432,7 +435,7 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     // Read the ROM file
-    let rom = fs::read("pong.ch8").expect("Failed to read ROM file");
+    let rom = fs::read("keypad.ch8").expect("Failed to read ROM file");
 
     // Load it into memory
     chip8.load_program(&rom);
