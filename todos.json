@@ -17,14 +17,22 @@
   },
   {
     "task": "00E0 clear screen",
-    "completed": false
+    "completed": true
   },
   {
     "task": "DXYN display/draw",
-    "completed": false
+    "completed": true
+  },
+  {
+    "task": "load a rom file",
+    "completed": true
   },
   {
     "task": "Display the IBM logo",
-    "completed": false
+    "completed": true
+  },
+  {
+    "task": "implement actual display",
+    "completed": true
   }
 ]
