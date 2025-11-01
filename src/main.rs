@@ -236,12 +236,21 @@ impl Chip8 {
                         // 8XY0: VX = VY
                         self.registers[x] = self.registers[y];
                     }
+                    0x0001 => {
+                        // 8XY1: Bitwise VX OR VY
+                        let result = self.registers[x] | self.registers[y];
+                        self.registers[x] = result;
+                    }
                     0x0002 => {
                         // 8XY2: Bitwise VX AND VY
                         let result = self.registers[x] & self.registers[y];
                         self.registers[x] = result;
                     }
-
+                    0x0003 => {
+                        // 8XY3: Bitwise VX XOR VY
+                        let result = self.registers[x] ^ self.registers[y];
+                        self.registers[x] = result;
+                    }
                     0x0004 => {
                         // 8XY4: ADD VY to VX, set VF = carry
                         // println!("V{:X} += V{:X}", x, y);
@@ -256,6 +265,25 @@ impl Chip8 {
                             self.registers[x].overflowing_sub(self.registers[y]);
                         self.registers[x] = result;
                         self.registers[0xF] = if underflow { 0 } else { 1 };
+                    }
+                    0x0006 => {
+                        // 8XY6: Shift VX right by 1, VF = least significant bit before
+                        // shift
+                        self.registers[0xF] = self.registers[x] & 0x1;
+                        self.registers[x] >>= 1;
+                    }
+                    0x0007 => {
+                        // 8XY7: Set VX = VY - VX, set VF = NOT borrow
+                        let (result, underflow) =
+                            self.registers[y].overflowing_sub(self.registers[x]);
+                        self.registers[x] = result;
+                        self.registers[0xF] = if underflow { 0 } else { 1 };
+                    }
+                    0x000E => {
+                        // 8XYE: Shift VX left by 1, VF = most significant bit before
+                        // shift
+                        self.registers[0xF] = (self.registers[x] & 0x80) >> 7;
+                        self.registers[x] <<= 1;
                     }
 
                     _ => println!("Unknown 8XY_ opcode: {:#06X}", opcode),
@@ -276,6 +304,10 @@ impl Chip8 {
                 // ANNN: Set index register I to NNN
                 // println!("Set I = {:#05X}", nnn);
                 self.i = nnn;
+            }
+            0xB000 => {
+                // BNNN: Jump to address NNN + V0
+                self.pc = nnn + self.registers[0] as u16 - 2;
             }
             0xC000 => {
                 // CXNN: set VX to random byte AND NN
@@ -356,7 +388,8 @@ impl Chip8 {
                         self.sound_timer = self.registers[x];
                     }
                     0x1E => {
-                        self.memory[self.i as usize] = self.registers[x];
+                        // FX1E: Add VX to I
+                        self.i += self.registers[x] as u16;
                     }
                     0x29 => {
                         // FX29: Sets I to the location of the sprite for the character in VX
@@ -371,6 +404,12 @@ impl Chip8 {
                         self.memory[self.i as usize] = hundreds;
                         self.memory[(self.i + 1) as usize] = tens;
                         self.memory[(self.i + 2) as usize] = ones;
+                    }
+                    0x55 => {
+                        // FX55: Stores from V0 to VX in memory starting at address I
+                        for i in 0..=x {
+                            self.memory[(self.i + i as u16) as usize] = self.registers[i];
+                        }
                     }
                     0x65 => {
                         // FX65: Fills from V0 to VX with values from memory starting at address I

@@ -8,5 +8,20 @@
     "task": "Opcode 0xC717",
     "completed": true,
     "comment": "This was a opcode for seperating a number into seperate digits.\n\nPong used this to display score.\n\nNow i can run and play pong!"
+  },
+  {
+    "task": "Opcode 0x820E",
+    "completed": true,
+    "comment": "8XYE Shift. Vx << 1"
+  },
+  {
+    "task": "Opcode 0x8206",
+    "completed": true,
+    "comment": "8XY6 Shift Vx >> 1"
+  },
+  {
+    "task": "Opcode 0xF155",
+    "completed": true,
+    "comment": "FX55 Stores V0 to VX (inclusive) in memory starting at address i.\n\nOpposite of FX65."
   }
 ]
