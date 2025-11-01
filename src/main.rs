@@ -1,4 +1,5 @@
 use minifb::{Key, Window, WindowOptions};
+use rand::Rng;
 use std::fs;
 
 struct Chip8 {
@@ -176,7 +177,7 @@ impl Chip8 {
 
             0x1000 => {
                 // 1NNN jumps to address NNN
-                println!("Jump to PC{:#05X}", nnn);
+                // println!("Jump to PC{:#05X}", nnn);
                 self.pc = nnn - 2;
             }
             0x2000 => {
@@ -189,42 +190,42 @@ impl Chip8 {
             0x3000 => {
                 // 3XNN Skips the next instruction if VX equals NN
                 if self.registers[x] == nn {
-                    println!("Skipping next instruction");
+                    // println!("Skipping next instruction");
                     self.pc += 2;
                 } else {
-                    println!("Continuing next instruction");
+                    // println!("Continuing next instruction");
                 }
             }
 
             0x4000 => {
                 // 4XNN Skips the next instruction of VX does NOT equal NN
                 if self.registers[x] != nn {
-                    println!("Skipping next instruction");
+                    // println!("Skipping next instruction");
                     self.pc += 2;
                 } else {
-                    println!("Continuing next instruction");
+                    // println!("Continuing next instruction");
                 }
             }
 
             0x5000 => {
                 // 5XY0 Skips the next instruction of VX equals VY
                 if self.registers[x] == self.registers[y] {
-                    println!("Skipping next instruction");
+                    // println!("Skipping next instruction");
                     self.pc += 2;
                 } else {
-                    println!("Continuing next instruction");
+                    // println!("Continuing next instruction");
                 }
             }
 
             0x6000 => {
                 // 6XNN: Set register VX to NN
-                println!("Set V{:X} = {:#04X}", x, nn);
+                // println!("Set V{:X} = {:#04X}", x, nn);
                 self.registers[x] = nn;
             }
 
             0x7000 => {
                 // 7XNN: Add NN to register VX
-                println!("Add {:#04X} to V{:X}", nn, x);
+                // println!("Add {:#04X} to V{:X}", nn, x);
                 self.registers[x] = self.registers[x].wrapping_add(nn);
             }
 
@@ -243,14 +244,14 @@ impl Chip8 {
 
                     0x0004 => {
                         // 8XY4: ADD VY to VX, set VF = carry
-                        println!("V{:X} += V{:X}", x, y);
+                        // println!("V{:X} += V{:X}", x, y);
                         let (result, overflow) =
                             self.registers[x].overflowing_add(self.registers[y]);
                         self.registers[x] = result;
                         self.registers[0xF] = if overflow { 1 } else { 0 };
                     }
                     0x0005 => {
-                        println!("V{:X} -= V{:X}", x, y);
+                        // println!("V{:X} -= V{:X}", x, y);
                         let (result, underflow) =
                             self.registers[x].overflowing_sub(self.registers[y]);
                         self.registers[x] = result;
@@ -264,23 +265,28 @@ impl Chip8 {
             0x9000 => {
                 // 9XY0 Skips next instruction of VX does NOT equal VY
                 if self.registers[x] != self.registers[y] {
-                    println!("Skipping next instruction");
+                    // println!("Skipping next instruction");
                     self.pc += 2;
                 } else {
-                    println!("Continuing next instruction");
+                    // println!("Continuing next instruction");
                 }
             }
 
             0xA000 => {
                 // ANNN: Set index register I to NNN
-                println!("Set I = {:#05X}", nnn);
+                // println!("Set I = {:#05X}", nnn);
                 self.i = nnn;
+            }
+            0xC000 => {
+                // CXNN: set VX to random byte AND NN
+                let random_byte: u8 = rand::thread_rng().gen_range(0..=255);
+                self.registers[x] = random_byte & nn;
             }
 
             0xD000 => {
                 // DXYN Draw display
-                let x = (self.registers[x] % 64) as usize;
-                let y = (self.registers[y] % 32) as usize;
+                let x = self.registers[x] as usize;
+                let y = self.registers[y] as usize;
                 let height = n;
                 let shift = x % 8;
 
@@ -294,7 +300,7 @@ impl Chip8 {
                     let old = self.display[display_byte_index];
                     self.display[display_byte_index] ^= sprite_byte >> shift;
 
-                    if old != 0 && self.display[display_byte_index] < old {
+                    if (old & sprite_byte >> shift) != 0 {
                         self.registers[0xF] = 1;
                     }
 
@@ -368,6 +374,9 @@ impl Chip8 {
                     }
                     0x65 => {
                         // FX65: Fills from V0 to VX with values from memory starting at address I
+                        for i in 0..=x {
+                            self.registers[i] = self.memory[(self.i + i as u16) as usize];
+                        }
                     }
                     _ => println!("Unknown 0xF... opcode: {:#06X}", opcode),
                 }
@@ -425,6 +434,16 @@ impl Chip8 {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() < 2 {
+        eprintln!("Usage: {} <rom_file>", args[0]);
+        eprintln!("Example: {} roms/pong.ch8", args[0]);
+        return;
+    }
+
+    let rom_path = &args[1];
+
     println!("=== Chip-8 Emulator - Starting ===\n");
 
     let mut chip8 = Chip8::new();
@@ -435,8 +454,10 @@ fn main() {
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     // Read the ROM file
-    let rom = fs::read("roms/ibm.ch8").expect("Failed to read ROM file");
-
+    let rom = fs::read(rom_path).unwrap_or_else(|e| {
+        eprintln!("Failed to read ROM file '{}' : {}", rom_path, e);
+        std::process::exit(1);
+    });
     // Load it into memory
     chip8.load_program(&rom);
 

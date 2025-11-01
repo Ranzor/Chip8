@@ -1,10 +1,12 @@
 [
   {
-    "task": "opcode FX35",
-    "completed": false
+    "task": "load rom from arg",
+    "completed": true,
+    "comment": "Implement the ability to load a specific rom with commandline arguments so we can decide which rom to run at runtime instead of hardcode."
   },
   {
-    "task": "load rom from arg",
-    "completed": false
+    "task": "Opcode 0xC717",
+    "completed": true,
+    "comment": "This was a opcode for seperating a number into seperate digits.\n\nPong used this to display score.\n\nNow i can run and play pong!"
   }
 ]
